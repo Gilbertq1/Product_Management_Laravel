@@ -75,9 +75,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     });
 
     Route::resource('products', ProductController::class);
-    Route::resource('products.discounts', DiscountController::class)->shallow();
+    Route::resource('products.discounts', DiscountController::class);
     Route::get('discounts', [DiscountController::class, 'indexAll'])->name('discounts.indexAll');
-
     // === Categories ===
     Route::controller(CategoryController::class)->group(function () {
         Route::post('categories/bulk-action', 'bulkAction')->name('categories.bulkAction');
@@ -107,8 +106,9 @@ Route::prefix('seller')->name('seller.')->middleware(['auth', 'role:seller'])->g
     Route::get('/', [SellerDashboardController::class, 'index'])->name('dashboard');
 
     Route::controller(SellerProductController::class)->group(function () {
-        Route::get('products/import', 'importForm')->name('products.importForm');
-        Route::post('products/import', 'import')->name('products.import');
+        Route::get('products/import', [SellerProductController::class, 'importForm'])->name('products.importForm');
+        Route::post('products/import/preview', [SellerProductController::class, 'preview'])->name('products.preview');
+        Route::post('products/import', [SellerProductController::class, 'import'])->name('products.import');
         Route::get('products/export', 'export')->name('products.export');
         Route::post('products/{id}/restore', 'restore')->name('products.restore');
         Route::delete('products/{id}/force-delete', 'forceDelete')->name('products.forceDelete');

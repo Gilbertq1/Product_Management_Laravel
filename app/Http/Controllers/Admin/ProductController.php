@@ -88,8 +88,8 @@ class ProductController extends Controller
             'stock'       => 'required|integer|min:0',
             'status'      => 'nullable|boolean',
             'seller_id'   => 'nullable|exists:users,id',
-            'thumbnail'   => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
-            'images.*'    => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
+            'thumbnail'   => 'nullable|image|mimes:jpg,jpeg,png,gif',
+            'images.*'    => 'nullable|image|mimes:jpg,jpeg,png,gif',
             'categories'  => 'nullable|array',
             'categories.*' => 'exists:categories,id',
         ]);
@@ -138,8 +138,8 @@ class ProductController extends Controller
             'price'       => 'required|numeric|min:0',
             'stock'       => 'required|integer|min:0',
             'status'      => 'nullable|boolean',
-            'thumbnail'   => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
-            'images.*'    => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
+            'thumbnail'   => 'nullable|image|mimes:jpg,jpeg,png,gif',
+            'images.*'    => 'nullable|image|mimes:jpg,jpeg,png,gif',
             'categories'  => 'nullable|array',
             'categories.*' => 'exists:categories,id',
         ];
@@ -458,8 +458,7 @@ class ProductController extends Controller
 
     public function importForm()
     {
-        // Jika admin: tampilkan semua sellers untuk dipilih.
-        // Jika seller yang membuka halaman, kita cukup kirim hanya dirinya.
+
         $user = Auth::user();
 
         if ($user && $user->role === 'admin') {
@@ -470,49 +469,5 @@ class ProductController extends Controller
         }
 
         return view('admin.products.import', compact('sellers'));
-    }
-
-    /**
-     * Download template file (xlsx or csv)
-     *
-     * @param string|null $format
-     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
-     */
-    public function downloadTemplate($format = 'xlsx')
-    {
-        $format = strtolower($format);
-        if (!in_array($format, ['xlsx', 'csv'])) {
-            $format = 'xlsx';
-        }
-
-        $template = [
-            ['name' => 'Contoh Produk A', 'description' => 'Deskripsi singkat', 'price' => 50000, 'stock' => 10, 'status' => 'Active'],
-            ['name' => 'Contoh Produk B', 'description' => 'Deskripsi lain',  'price' => 25000, 'stock' => 5,  'status' => 'Inactive'],
-        ];
-
-        $dir = storage_path('app/templates');
-        if (!file_exists($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        $filename = "products_template.{$format}";
-        $filePath = "{$dir}/{$filename}";
-
-        if ($format === 'csv') {
-            // tulis CSV (UTF-8, tanpa BOM; tambahkan BOM jika perlu untuk Excel Windows)
-            $fp = fopen($filePath, 'w');
-            if ($fp === false) abort(500, 'Cannot create template file.');
-            // header dari keys
-            fputcsv($fp, array_keys($template[0]));
-            foreach ($template as $row) {
-                fputcsv($fp, array_values($row));
-            }
-            fclose($fp);
-        } else {
-            // xlsx via spatie/simple-excel
-            SimpleExcelWriter::create($filePath)->addRows($template);
-        }
-
-        return response()->download($filePath, $filename)->deleteFileAfterSend(true);
     }
 }

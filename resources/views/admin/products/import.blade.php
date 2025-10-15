@@ -1,9 +1,9 @@
 @extends('adminlte::page')
 
-@section('title', 'Import Products')
+@section('title', 'Import Produk')
 
 @section('content_header')
-<h1>Import Produk</h1>
+    <h1>Import Produk</h1>
 @stop
 
 @section('content')
@@ -12,13 +12,18 @@
         <p>Unduh template lalu isi. Setelah itu upload file (.xlsx / .csv) dan klik "Upload & Lihat Preview".</p>
 
         <div class="mb-3">
-            <a href="{{ route('admin.products.import.template', ['format' => 'xlsx']) }}" class="btn btn-outline-primary">
+            {{-- Download langsung dari public/templates --}}
+            <a href="{{ asset('templates/template_produk.xlsx') }}" class="btn btn-outline-primary">
                 <i class="fas fa-download"></i> Download Template (.xlsx)
             </a>
 
-            <a href="{{ route('admin.products.import.template', ['format' => 'csv']) }}" class="btn btn-outline-secondary">
+            <a href="{{ asset('templates/template_produk.csv') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-download"></i> Download Template (.csv)
             </a>
+
+            <small class="text-muted d-block mt-1">
+                Kolom wajib: <code>name</code>, <code>description</code>, <code>price</code>, <code>stock</code>, <code>status</code>
+            </small>
         </div>
 
         <form action="{{ route('admin.products.import.preview') }}" method="POST" enctype="multipart/form-data">
@@ -30,7 +35,7 @@
                 <select name="seller_id" id="seller_id" class="form-control" required>
                     <option value="">-- Pilih Seller --</option>
                     @foreach ($sellers as $seller)
-                    <option value="{{ $seller->id }}">{{ $seller->name }}</option>
+                        <option value="{{ $seller->id }}">{{ $seller->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -46,7 +51,6 @@
 
             <a href="{{ route('admin.products.index') }}" class="btn btn-secondary">Batal</a>
         </form>
-
     </div>
 </div>
 @stop

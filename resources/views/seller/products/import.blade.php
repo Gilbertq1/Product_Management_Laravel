@@ -9,7 +9,8 @@
 @section('content')
 <div class="card">
     <div class="card-body">
-        <form action="{{ route('seller.products.import') }}" method="POST" enctype="multipart/form-data">
+        {{-- Kirim ke route preview dulu --}}
+        <form action="{{ route('seller.products.preview') }}" method="POST" enctype="multipart/form-data">
             @csrf
 
             <div class="mb-3">
@@ -33,7 +34,7 @@
                 <input type="file" name="file" id="file" class="form-control" required>
             </div>
 
-            <button type="submit" class="btn btn-primary">Import</button>
+            <button type="submit" class="btn btn-primary">Lanjut ke Preview</button>
         </form>
     </div>
 </div>

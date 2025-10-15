@@ -341,44 +341,140 @@ class SellerProductController extends Controller
         return response()->download($filePath)->deleteFileAfterSend(true);
     }
 
-    public function import(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|mimes:xlsx,csv,text/csv',
-        ]);
-
-        // simpan file ke storage/app/imports
-        $path = $request->file('file')->store('imports');
-        $fullPath = Storage::path($path);
-
-        if (!Storage::exists($path)) {
-            dd("File tidak ditemukan", $fullPath, $path, Storage::files('imports'));
-        }
-
-        SimpleExcelReader::create($fullPath)
-            ->getRows()
-            ->each(function (array $row) {
-                $row = array_change_key_case($row, CASE_LOWER);
-
-                Product::updateOrCreate(
-                    ['id' => $row['id'] ?? null],
-                    [
-                        'seller_id'   => Auth::id(),
-                        'name'        => $row['name'] ?? '',
-                        'description' => $row['description'] ?? '',
-                        'price'       => $row['price'] ?? 0,
-                        'stock'       => $row['stock'] ?? 0,
-                        'status'      => ($row['status'] ?? 'Inactive') === 'Active',
-                    ]
-                );
-            });
-
-        return redirect()->route('seller.products.index')
-            ->with('success', 'Produk berhasil diimport!');
-    }
-
     public function importForm()
     {
         return view('seller.products.import');
+    }
+
+    /**
+     * ✅ Preview Import Sebelum Dimasukkan ke Database
+     */
+    public function preview(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,csv,text/csv|max:2048',
+        ]);
+
+        // Simpan file sementara di storage/app/imports
+        $path = $request->file('file')->store('imports');
+        $fullPath = Storage::path($path);
+
+        // Pastikan file ada
+        if (!Storage::exists($path)) {
+            return back()->withErrors(['file' => 'File gagal diunggah, coba lagi.']);
+        }
+
+        // Baca isi file
+        $rows = SimpleExcelReader::create($fullPath)->getRows()->toArray();
+
+        $validRows = [];
+        $invalidRows = [];
+        $headers = [];
+
+        foreach ($rows as $index => $row) {
+            $row = array_change_key_case($row, CASE_LOWER);
+            $headers = array_keys($row);
+
+            // Validasi manual per baris
+            $errors = [];
+            if (empty($row['name'])) {
+                $errors[] = 'Kolom name wajib diisi';
+            }
+            if (!isset($row['price']) || !is_numeric($row['price']) || $row['price'] < 0) {
+                $errors[] = 'Kolom price harus angka dan minimal 0';
+            }
+            if (!isset($row['stock']) || !is_numeric($row['stock']) || $row['stock'] < 0) {
+                $errors[] = 'Kolom stock harus angka dan minimal 0';
+            }
+            if (!isset($row['status'])) {
+                $row['status'] = 'Inactive';
+            }
+
+            if (empty($errors)) {
+                $validRows[] = $row;
+            } else {
+                $invalidRows[] = [
+                    'row' => $index + 2, // +2 karena baris 1 header
+                    'data' => $row,
+                    'errors' => $errors,
+                ];
+            }
+        }
+
+        return view('seller.products.preview', [
+            'file_path' => $path,
+            'headers' => $headers,
+            'validRows' => $validRows,
+            'invalidRows' => $invalidRows,
+        ]);
+    }
+
+    /**
+     * ✅ Import dari hasil Preview
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file_path' => 'required|string',
+        ]);
+
+        $path = $request->file_path;
+        $fullPath = Storage::path($path);
+
+        if (!Storage::exists($path)) {
+            return back()->withErrors(['file_path' => 'File tidak ditemukan, silakan upload ulang.']);
+        }
+
+        $rows = SimpleExcelReader::create($fullPath)->getRows()->toArray();
+
+        $validRows = [];
+        $invalidRows = [];
+
+        foreach ($rows as $index => $row) {
+            $row = array_change_key_case($row, CASE_LOWER);
+
+            $errors = [];
+            if (empty($row['name'])) $errors[] = 'Kolom name wajib diisi';
+            if (!isset($row['price']) || !is_numeric($row['price']) || $row['price'] < 0) $errors[] = 'Kolom price harus angka dan minimal 0';
+            if (!isset($row['stock']) || !is_numeric($row['stock']) || $row['stock'] < 0) $errors[] = 'Kolom stock harus angka dan minimal 0';
+            if (!isset($row['status'])) $row['status'] = 'Inactive';
+
+            if (empty($errors)) {
+                $validRows[] = $row;
+            } else {
+                $invalidRows[] = ['row' => $index + 2, 'data' => $row, 'errors' => $errors];
+            }
+        }
+
+        if (!empty($invalidRows)) {
+            return view('seller.products.preview', [
+                'file_path' => $path,
+                'headers' => array_keys($rows[0] ?? []),
+                'validRows' => $validRows,
+                'invalidRows' => $invalidRows,
+            ])->with('error', 'Beberapa data tidak valid. Silakan perbaiki.');
+        }
+
+        // Simpan ke database
+        foreach ($validRows as $row) {
+            Product::updateOrCreate(
+                ['name' => $row['name']],
+                [
+                    'seller_id'   => Auth::id(),
+                    'description' => $row['description'] ?? '',
+                    'price'       => $row['price'] ?? 0,
+                    'stock'       => $row['stock'] ?? 0,
+                    'status'      => ($row['status'] ?? 'Inactive') === 'Active',
+                ]
+            );
+        }
+
+        // Hapus file sementara
+        Storage::delete($path);
+
+        $this->logActivity('import', 'Import produk dari file Excel.');
+
+        return redirect()->route('seller.products.index')
+            ->with('success', 'Produk berhasil diimport!');
     }
 }
