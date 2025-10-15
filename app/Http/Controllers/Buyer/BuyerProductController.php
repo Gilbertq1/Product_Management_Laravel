@@ -13,50 +13,58 @@ class BuyerProductController extends Controller
     {
         $categories = Category::all();
 
-        $query = Product::query();
+        // hanya produk aktif
+        $query = Product::active()->with(['seller', 'categories', 'thumbnail']);
 
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->search . '%');
         }
+
         if ($request->filled('category')) {
             $query->whereHas('categories', function ($q) use ($request) {
                 $q->where('categories.id', $request->category);
             });
         }
+
         if ($request->filled('min_price')) {
             $query->where('price', '>=', $request->min_price);
         }
+
         if ($request->filled('max_price')) {
             $query->where('price', '<=', $request->max_price);
         }
-        if ($request->sort == 'price_asc') {
+
+        if ($request->sort === 'price_asc') {
             $query->orderBy('price', 'asc');
-        } elseif ($request->sort == 'price_desc') {
+        } elseif ($request->sort === 'price_desc') {
             $query->orderBy('price', 'desc');
         } else {
             $query->latest();
         }
 
-        $products = $query->paginate(12);
+        $products = $query->paginate(12)->withQueryString();
 
         return view('buyer.products.index', compact('products', 'categories'));
     }
 
     public function liveSearch(Request $request)
     {
-        $query = Product::query();
+        $query = Product::active()->with(['seller', 'categories', 'thumbnail']);
 
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
         }
+
         if ($request->filled('category')) {
             $query->whereHas('categories', function ($q) use ($request) {
                 $q->where('categories.id', $request->category);
             });
         }
+
         if ($request->filled('min_price')) {
             $query->where('price', '>=', $request->min_price);
         }
+
         if ($request->filled('max_price')) {
             $query->where('price', '<=', $request->max_price);
         }
@@ -76,11 +84,17 @@ class BuyerProductController extends Controller
 
     public function show(Product $product)
     {
+        // blok akses jika produk inactive atau tidak tersedia
+        if (! $product->status) {
+            return redirect()->route('buyer.products.index')
+                ->with('error', 'Produk tidak tersedia.');
+        }
+
         $product->load(['images', 'categories', 'seller']);
 
-        $related = Product::with('images')
+        $related = Product::active()
+            ->with('images')
             ->where('id', '!=', $product->id)
-            ->where('status', true)
             ->inRandomOrder()
             ->take(4)
             ->get();

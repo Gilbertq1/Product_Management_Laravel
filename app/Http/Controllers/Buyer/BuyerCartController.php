@@ -28,9 +28,16 @@ class BuyerCartController extends Controller
     {
         $product = Product::findOrFail($id);
 
-        if ($product->stock < 1) {
-            // log: gagal tambah karena stok habis
-            $this->logActivity('cart.add_failed', "Gagal menambahkan product ID {$id} - stok habis");
+        // cek status aktif
+        if (! $product->status) {
+            $this->logActivity('cart.add_failed', "Gagal menambahkan product ID {$id} - produk inactive");
+            return redirect()->route('buyer.products.index')
+                ->with('error', 'Produk tidak tersedia untuk dibeli.');
+        }
+
+        // cek availability (status + stock)
+        if (! $product->isAvailable()) {
+            $this->logActivity('cart.add_failed', "Gagal menambahkan product ID {$id} - stok habis atau tidak tersedia");
             return redirect()->route('buyer.products.index')
                 ->with('error', 'Produk sudah habis, tidak bisa dipesan.');
         }
@@ -69,7 +76,14 @@ class BuyerCartController extends Controller
         $cart = session()->get('cart', []);
         if (isset($cart[$id])) {
             $oldQty = $cart[$id]['quantity'];
-            $newQty = min($request->quantity, $cart[$id]['stock']);
+
+            // pastikan tidak melebihi stock terakhir di DB
+            $product = Product::find($id);
+            $maxStock = $product ? $product->stock : $cart[$id]['stock'];
+
+            $newQty = min(intval($request->quantity), $maxStock);
+            $newQty = $newQty < 1 ? 1 : $newQty;
+
             $cart[$id]['quantity'] = $newQty;
             session()->put('cart', $cart);
 
@@ -113,7 +127,6 @@ class BuyerCartController extends Controller
         // Ambil hanya item yang ada di cart dan termasuk selected
         $filteredCart = [];
         foreach ($selected as $productId) {
-            // pastikan key sesuai tipe (string/int), dan item ada di session cart
             if (!isset($cart[$productId])) {
                 continue;
             }
@@ -125,7 +138,7 @@ class BuyerCartController extends Controller
                 continue;
             }
 
-            // cek ketersediaan produk (method isAvailable dipakai sebelumnya)
+            // cek ketersediaan produk (isAvailable mempertimbangkan status & stock)
             if (!$product->isAvailable() || $product->stock < $item['quantity']) {
                 continue;
             }
@@ -158,8 +171,8 @@ class BuyerCartController extends Controller
                     $quantity = $item['quantity'];
                     $finalPrice = $product->final_price;
 
-                    if ($product->stock < $quantity) {
-                        throw new \Exception("Stok {$product->name} tidak mencukupi.");
+                    if ($product->stock < $quantity || !$product->status) {
+                        throw new \Exception("Stok {$product->name} tidak mencukupi atau produk tidak tersedia.");
                     }
 
                     $product->decrement('stock', $quantity);
@@ -204,7 +217,6 @@ class BuyerCartController extends Controller
     public function cancel(Order $order)
     {
         if ($order->user_id !== Auth::id() || $order->status !== 'unpaid') {
-            // log: upaya batal order yang tidak valid
             $this->logActivity('order.cancel_failed', "Percobaan membatalkan order ID {$order->id} gagal - tidak valid atau status bukan 'unpaid'");
             return back()->with('error', 'Pesanan tidak bisa dibatalkan.');
         }
@@ -216,7 +228,6 @@ class BuyerCartController extends Controller
             $order->update(['status' => 'cancelled']);
         });
 
-        // log: berhasil batalkan order
         $this->logActivity('order.cancelled', "Order ID {$order->id} dibatalkan oleh user_id " . Auth::id());
 
         return back()->with('success', 'Pesanan berhasil dibatalkan.');

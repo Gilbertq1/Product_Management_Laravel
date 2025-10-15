@@ -14,25 +14,27 @@
 {{-- 🔄 Tabs --}}
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item">
-        <a class="nav-link {{ request('status') !== 'trash' ? 'active' : '' }}"
+        <a class="nav-link {{ request('status_view') !== 'trash' ? 'active' : '' }}"
             href="{{ route('admin.orders.index') }}">
             Active
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {{ request('status') === 'trash' ? 'active' : '' }}"
-            href="{{ route('admin.orders.index', ['status' => 'trash']) }}">
+        <a class="nav-link {{ request('status_view') === 'trash' ? 'active' : '' }}"
+            href="{{ route('admin.orders.index', ['status_view' => 'trash']) }}">
             Trash
         </a>
     </li>
 </ul>
 
+
 {{-- 🔍 Filter --}}
 <form method="GET" action="{{ route('admin.orders.index') }}" class="form-inline mb-3">
-    <input type="hidden" name="status" value="{{ request('status') }}">
+    {{-- bawa param status_view supaya tab tetap --}}
+    <input type="hidden" name="status_view" value="{{ request('status_view') }}">
 
     <input type="text" name="search" class="form-control mr-2"
-        placeholder="Cari user / invoice..."
+        placeholder="Cari order code / buyer..."
         value="{{ request('search') }}">
 
     <input type="date" name="date_from" class="form-control mr-2"
@@ -40,12 +42,12 @@
     <input type="date" name="date_to" class="form-control mr-2"
         value="{{ request('date_to') }}">
 
-    <select name="status_order" class="form-control mr-2">
+    <select name="status" class="form-control mr-2">
         <option value="">Semua Status</option>
-        <option value="unpaid" {{ request('status_order')=='unpaid' ? 'selected' : '' }}>Unpaid</option>
-        <option value="paid" {{ request('status_order')=='paid' ? 'selected' : '' }}>Paid</option>
-        <option value="shipped" {{ request('status_order')=='shipped' ? 'selected' : '' }}>Shipped</option>
-        <option value="done" {{ request('status_order')=='done' ? 'selected' : '' }}>Done</option>
+        <option value="unpaid" {{ request('status')=='unpaid' ? 'selected' : '' }}>Unpaid</option>
+        <option value="paid" {{ request('status')=='paid' ? 'selected' : '' }}>Paid</option>
+        <option value="shipped" {{ request('status')=='shipped' ? 'selected' : '' }}>Shipped</option>
+        <option value="done" {{ request('status')=='done' ? 'selected' : '' }}>Done</option>
     </select>
 
     <select name="sort" class="form-control mr-2">
@@ -65,7 +67,7 @@
     <div class="form-inline">
         <select name="action" class="form-control mr-2" required>
             <option value="">-- Bulk Action --</option>
-            @if(request('status') === 'trash')
+            @if(request('status_view') === 'trash')
             <option value="restore">Restore</option>
             <option value="force_delete">Delete Permanently</option>
             @else
@@ -118,7 +120,7 @@
             </td>
             <td>{{ $order->created_at->format('d M Y H:i') }}</td>
             <td>
-                @if(request('status') === 'trash')
+                @if(request('status_view') === 'trash')
                 <div class="btn-group">
                     <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-toggle="dropdown">
                         Actions
@@ -201,7 +203,7 @@
             e.preventDefault();
             Swal.fire({
                 title: "Yakin?",
-                text: "{{ request('status') === 'trash' ? 'Order akan dihapus permanen!' : 'Order akan dipindahkan ke trash!' }}",
+                text: "{{ request('status_view') === 'trash' ? 'Order akan dihapus permanen!' : 'Order akan dipindahkan ke trash!' }}",
                 icon: "warning",
                 showCancelButton: true,
                 confirmButtonColor: '#d33',

@@ -100,9 +100,13 @@ class Product extends Model
         return $this->price;
     }
 
-    // Cek ketersediaan
+    public function scopeActive($query)
+    {
+        return $query->where('status', true);
+    }
+
     public function isAvailable(): bool
     {
-        return $this->status === true && $this->stock > 0;
+        return $this->status && $this->stock > 0;
     }
 }

@@ -47,25 +47,4 @@
             </div>
         </div>
     </div>
-
-    <!-- Produk Terlaris -->
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Produk Terlaris</h3>
-        </div>
-        <div class="card-body">
-            @if($bestSeller && $bestSeller->product)
-                <div class="d-flex align-items-center">
-                    <img src="{{ asset('storage/' . $bestSeller->product->image_url) }}" 
-                         class="img-thumbnail mr-3" style="width:80px; height:80px; object-fit:cover;">
-                    <div>
-                        <h5 class="mb-1">{{ $bestSeller->product->name }}</h5>
-                        <small class="text-muted">Terjual {{ $bestSeller->total }} kali</small>
-                    </div>
-                </div>
-            @else
-                <p class="text-muted">Belum ada produk terjual</p>
-            @endif
-        </div>
-    </div>
 @stop

@@ -20,37 +20,70 @@ class OrderController extends Controller
     {
         $query = Order::with('user')->withCount('items');
 
-        if ($request->get('status') === 'trash') {
+        // Tab view: lihat trash jika status_view=trash
+        if ($request->get('status_view') === 'trash') {
             $query->onlyTrashed();
         }
 
-        if ($request->filled('from')) {
-            $query->whereDate('created_at', '>=', $request->from);
+        // Filter tanggal
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->input('date_from'));
         }
-        if ($request->filled('to')) {
-            $query->whereDate('created_at', '<=', $request->to);
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->input('date_to'));
         }
-        if ($request->filled('status') && $request->status !== 'trash') {
-            $query->where('status', $request->status);
+
+        // Filter status order (jangan apply ketika sedang lihat trash)
+        if ($request->filled('status_order') && $request->get('status_view') !== 'trash') {
+            $query->where('status', $request->input('status_order'));
         }
+
+        // Search: berdasarkan nama user atau ID order
         if ($request->filled('search')) {
-            $query->whereHas('user', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%');
+            $term = $request->input('search');
+            $query->where(function ($q) use ($term) {
+                $q->where('id', 'like', "%{$term}%")
+                    ->orWhereHas('user', function ($q2) use ($term) {
+                        $q2->where('name', 'like', "%{$term}%");
+                    });
             });
         }
 
-        $orders = $query->latest()->paginate(10)->appends($request->all());
+        // Sorting
+        switch ($request->get('sort')) {
+            case 'newest':
+                $query->latest();
+                break;
+            case 'oldest':
+                $query->oldest();
+                break;
+            case 'amount_desc':
+                $query->orderBy('total_price', 'desc');
+                break;
+            case 'amount_asc':
+                $query->orderBy('total_price', 'asc');
+                break;
+            default:
+                $query->latest();
+        }
+
+        $orders = $query->paginate(10)->appends($request->all());
 
         return view('admin.orders.index', compact('orders'));
     }
 
+
     public function create()
     {
         $users = User::all();
-        // load thumbnail product juga
-        $products = Product::with(['images' => function ($q) {
-            $q->where('is_thumbnail', true);
-        }])->latest()->paginate(20);
+
+        // Ambil hanya produk aktif untuk modal pilih produk
+        $products = Product::where('status', 1)
+            ->with(['images' => function ($q) {
+                $q->where('is_thumbnail', true);
+            }])
+            ->orderBy('name')
+            ->get();
 
         return view('admin.orders.create', compact('users', 'products'));
     }

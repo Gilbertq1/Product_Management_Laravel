@@ -55,7 +55,7 @@ class AdminDashboardController extends Controller
         $recentOrders   = Order::latest()->take(5)->get();
         $recentProducts = Product::latest()->take(5)->get();
 
-        // ✅ Top products (produk terlaris berdasarkan quantity dari order yang selesai)
+        // Top products (produk terlaris berdasarkan quantity dari order yang selesai)
         $topProducts = DB::table('order_items')
             ->join('products', 'order_items.product_id', '=', 'products.id')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
@@ -66,7 +66,7 @@ class AdminDashboardController extends Controller
             ->take(5)
             ->get();
 
-        // ✅ Top customers (berdasarkan total pembelian dari order yang selesai)
+        // Top customers (berdasarkan total pembelian dari order yang selesai)
         $topCustomers = DB::table('orders')
             ->join('users', 'orders.user_id', '=', 'users.id')
             ->whereIn('orders.status', ['completed', 'paid', 'done'])

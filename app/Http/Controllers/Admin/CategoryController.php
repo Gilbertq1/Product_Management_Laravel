@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use App\LogActivity;
+use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
@@ -57,10 +58,16 @@ class CategoryController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:categories',
+            'slug' => 'nullable|string|max:255|unique:categories,slug',
         ]);
+
+        // jika slug dikirim kosong / tidak ada, generate dari name
+        $slug = $request->filled('slug') ? Str::slug($request->slug) : Str::slug($request->name);
+        $slug = $this->makeUniqueSlug($slug);
 
         $category = Category::create([
             'name' => $request->name,
+            'slug' => $slug,
         ]);
 
         $this->logActivity('create', "Tambah kategori {$category->name}");
@@ -77,10 +84,22 @@ class CategoryController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
+            'slug' => 'nullable|string|max:255|unique:categories,slug,' . $category->id,
         ]);
+
+        // jika slug dikirim kosong / tidak ada, generate dari name
+        $providedSlug = $request->input('slug');
+        if (filled($providedSlug)) {
+            $slug = Str::slug($providedSlug);
+        } else {
+            $slug = Str::slug($request->name);
+        }
+
+        $slug = $this->makeUniqueSlug($slug, $category->id);
 
         $category->update([
             'name' => $request->name,
+            'slug' => $slug,
         ]);
 
         $this->logActivity('update', "Update kategori {$category->name}");
@@ -154,5 +173,37 @@ class CategoryController extends Controller
                 break;
         }
         return redirect()->route('admin.categories.index')->with('success', $message);
+    }
+
+    /**
+     * Generate unique slug.
+     *
+     * @param string $baseSlug  slug awal (sudah di-str_slug)
+     * @param int|null $exceptId optional id yang diabaikan pada pengecekan unik (mis. update)
+     * @return string
+     */
+    private function makeUniqueSlug(string $baseSlug, int $exceptId = null): string
+    {
+        $slug = $baseSlug ?: 'category';
+        $original = $slug;
+        $i = 1;
+
+        while ($this->slugExists($slug, $exceptId)) {
+            $slug = $original . '-' . $i++;
+        }
+
+        return $slug;
+    }
+
+    /**
+     * Cek keberadaan slug di DB.
+     */
+    private function slugExists(string $slug, int $exceptId = null): bool
+    {
+        $query = Category::where('slug', $slug);
+        if ($exceptId) {
+            $query->where('id', '!=', $exceptId);
+        }
+        return $query->exists();
     }
 }
