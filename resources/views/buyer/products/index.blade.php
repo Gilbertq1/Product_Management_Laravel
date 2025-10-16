@@ -102,7 +102,7 @@
             }
         });
 
-        return u.toString(); // full absolute url
+        return u.toString();
     }
 
     function fetchProducts(url = null) {

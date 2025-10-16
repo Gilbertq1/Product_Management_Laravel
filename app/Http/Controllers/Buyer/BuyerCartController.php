@@ -197,7 +197,7 @@ class BuyerCartController extends Controller
             });
 
             // dispatch expire job
-            ExpireOrderJob::dispatch($order->id)->delay(now()->addMinutes(30));
+            ExpireOrderJob::dispatch($order->id)->delay(now()->addSeconds(5));
 
             // log: sukses membuat order (cantumkan id & total)
             $this->logActivity('order.created', "Order ID {$order->id} dibuat oleh user_id " . Auth::id() . ", total_price={$order->total_price}");
